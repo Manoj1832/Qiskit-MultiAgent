@@ -1,0 +1,37 @@
+# Agent Policies Configuration
+
+# Retry policies
+retry:
+  max_retries: 3
+  initial_delay_seconds: 1.0
+  max_delay_seconds: 30.0
+  exponential_base: 2.0
+
+# Timeout policies
+timeouts:
+  agent_execution_seconds: 300
+  github_api_seconds: 30
+  test_runner_seconds: 600
+
+# Token budgets per agent
+token_budgets:
+  issue_intelligence: 10000
+  impact_assessment: 8000
+  planner: 15000
+  code_generator: 25000
+  pr_reviewer: 12000
+  validator: 8000
+
+# Execution policies
+execution:
+  parallel_agents: false
+  strict_ordering: true
+  fail_fast: false
+  checkpoint_enabled: true
+
+# Security policies
+security:
+  github_read_only: true
+  allow_code_execution: false
+  sanitize_prompts: true
+  validate_outputs: true

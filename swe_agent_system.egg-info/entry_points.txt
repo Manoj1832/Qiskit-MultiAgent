@@ -1,0 +1,2 @@
+[console_scripts]
+swe-agent = swe_agent_system.cli:main
