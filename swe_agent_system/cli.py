@@ -72,7 +72,7 @@ def load_config():
     """Load configuration from environment and config files."""
     load_dotenv()
     return {
-        "openai_api_key": os.getenv("OPENAI_API_KEY"),
+        "anthropic_api_key": os.getenv("ANTHROPIC_API_KEY"),
         "github_token": os.getenv("GITHUB_TOKEN"),
         "log_level": os.getenv("LOG_LEVEL", "INFO"),
     }
@@ -113,8 +113,8 @@ def process(issue_url: str, repo: str | None, output: str | None):
     
     config = load_config()
     
-    if not config["openai_api_key"]:
-        console.print("[red]Error: OPENAI_API_KEY not set[/red]")
+    if not config["anthropic_api_key"]:
+        console.print("[red]Error: ANTHROPIC_API_KEY not set[/red]")
         raise click.Abort()
     
     if not config["github_token"]:
@@ -207,7 +207,7 @@ def benchmark(issues_file: str, repo: str, output: str):
     
     config = load_config()
     
-    if not config["openai_api_key"] or not config["github_token"]:
+    if not config["anthropic_api_key"] or not config["github_token"]:
         console.print("[red]Error: API keys not configured[/red]")
         raise click.Abort()
     
