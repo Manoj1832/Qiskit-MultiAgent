@@ -57,9 +57,9 @@ class BudgetPolicy:
     max_cost_per_issue_usd: float = 5.0
     max_tokens_per_agent: int = 25000
     
-    # Approximate Gemini pricing (per 1K tokens)
-    input_cost_per_1k: float = 0.00125  # Gemini 1.5 Pro
-    output_cost_per_1k: float = 0.005
+    # Approximate OpenAI pricing (per 1K tokens)
+    input_cost_per_1k: float = 0.00015  # GPT-4o-mini
+    output_cost_per_1k: float = 0.0006
     
     def check_token_budget(self, current_tokens: int, requested_tokens: int) -> bool:
         """Check if token budget allows for more tokens."""

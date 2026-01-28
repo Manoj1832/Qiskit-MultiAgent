@@ -15,7 +15,7 @@ authors = [
 keywords = ["ai", "agents", "software-engineering", "automation", "qiskit"]
 
 dependencies = [
-    "google-genai>=1.0.0",
+    "anthropic>=0.40.0",
     "PyGithub>=2.1.0",
     "pyyaml>=6.0",
     "structlog>=23.2.0",

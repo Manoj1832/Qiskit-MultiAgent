@@ -4,7 +4,9 @@ Command-line interface for the SWE Agent System.
 
 import asyncio
 import os
+import re
 from pathlib import Path
+from urllib.parse import urlparse
 
 import click
 from dotenv import load_dotenv
@@ -27,11 +29,50 @@ from .benchmarking import SWEBenchRunner
 console = Console()
 
 
+def validate_github_url(url: str) -> bool:
+    """
+    Validate GitHub issue URL format.
+    
+    Args:
+        url: URL to validate
+        
+    Returns:
+        True if valid GitHub issue URL
+    """
+    try:
+        parsed = urlparse(url)
+        
+        # Check domain
+        if parsed.netloc not in ["github.com", "www.github.com"]:
+            return False
+        
+        # Check path pattern: /owner/repo/issues/number
+        path_pattern = r"^/[^/]+/[^/]+/issues/\d+$"
+        return bool(re.match(path_pattern, parsed.path))
+        
+    except Exception:
+        return False
+
+
+def validate_repo_format(repo: str) -> bool:
+    """
+    Validate repository format (owner/repo).
+    
+    Args:
+        repo: Repository string to validate
+        
+    Returns:
+        True if valid repository format
+    """
+    pattern = r"^[^/]+/[^/]+$"
+    return bool(re.match(pattern, repo))
+
+
 def load_config():
     """Load configuration from environment and config files."""
     load_dotenv()
     return {
-        "gemini_api_key": os.getenv("GEMINI_API_KEY"),
+        "openai_api_key": os.getenv("OPENAI_API_KEY"),
         "github_token": os.getenv("GITHUB_TOKEN"),
         "log_level": os.getenv("LOG_LEVEL", "INFO"),
     }
@@ -64,10 +105,16 @@ def cli(verbose: bool):
 @click.option("--output", "-o", type=click.Path(), help="Output directory for results")
 def process(issue_url: str, repo: str | None, output: str | None):
     """Process a single GitHub issue."""
+    # Validate GitHub URL
+    if not validate_github_url(issue_url):
+        console.print("[red]Error: Invalid GitHub issue URL format[/red]")
+        console.print("Expected format: https://github.com/owner/repo/issues/123")
+        raise click.Abort()
+    
     config = load_config()
     
-    if not config["gemini_api_key"]:
-        console.print("[red]Error: GEMINI_API_KEY not set[/red]")
+    if not config["openai_api_key"]:
+        console.print("[red]Error: OPENAI_API_KEY not set[/red]")
         raise click.Abort()
     
     if not config["github_token"]:
@@ -79,6 +126,12 @@ def process(issue_url: str, repo: str | None, output: str | None):
         parts = issue_url.split("/")
         repo = f"{parts[-4]}/{parts[-3]}"
     
+    # Validate repo format
+    if not validate_repo_format(repo):
+        console.print("[red]Error: Invalid repository format[/red]")
+        console.print("Expected format: owner/repo")
+        raise click.Abort()
+    
     console.print(f"[blue]Processing issue:[/blue] {issue_url}")
     console.print(f"[blue]Repository:[/blue] {repo}")
     
@@ -87,15 +140,15 @@ def process(issue_url: str, repo: str | None, output: str | None):
     tracer = ExecutionTracer(output or "traces")
     orchestrator = Orchestrator(agents, tracer=tracer)
     
-    # Fetch issue data first
-    github = GitHubClient(config["github_token"])
-    issue_data = github.get_issue_from_url(issue_url)
-    
-    console.print(f"[green]Issue #{issue_data.number}:[/green] {issue_data.title}")
-    
     # Run the pipeline
     async def run():
         from .orchestrator.state_machine import ExecutionContext
+        
+        # Fetch issue data first (async)
+        github = GitHubClient(config["github_token"])
+        issue_data = await github.get_issue_from_url(issue_url)
+        
+        console.print(f"[green]Issue #{issue_data.number}:[/green] {issue_data.title}")
         
         context = ExecutionContext(
             issue_id=str(issue_data.number),
@@ -146,9 +199,15 @@ def process(issue_url: str, repo: str | None, output: str | None):
 @click.option("--output", "-o", type=click.Path(), default="experiments", help="Output directory")
 def benchmark(issues_file: str, repo: str, output: str):
     """Run benchmark on a list of issues."""
+    # Validate repo format
+    if not validate_repo_format(repo):
+        console.print("[red]Error: Invalid repository format[/red]")
+        console.print("Expected format: owner/repo")
+        raise click.Abort()
+    
     config = load_config()
     
-    if not config["gemini_api_key"] or not config["github_token"]:
+    if not config["openai_api_key"] or not config["github_token"]:
         console.print("[red]Error: API keys not configured[/red]")
         raise click.Abort()
     
@@ -157,9 +216,28 @@ def benchmark(issues_file: str, repo: str, output: str):
     runner = SWEBenchRunner(output)
     run = runner.start_run(repo)
     
-    # Load issues from file
+# Load issues from file and validate URLs
     with open(issues_file) as f:
-        issue_urls = [line.strip() for line in f if line.strip()]
+        issue_urls = []
+        invalid_urls = []
+        
+        for line_num, line in enumerate(f, 1):
+            url = line.strip()
+            if not url:
+                continue
+                
+            if validate_github_url(url):
+                issue_urls.append(url)
+            else:
+                invalid_urls.append(f"Line {line_num}: {url}")
+    
+    if invalid_urls:
+        console.print("[red]Error: Found invalid GitHub issue URLs:[/red]")
+        for invalid in invalid_urls[:5]:  # Show first 5 errors
+            console.print(f"  - {invalid}")
+        if len(invalid_urls) > 5:
+            console.print(f"  ... and {len(invalid_urls) - 5} more")
+        raise click.Abort()
     
     console.print(f"Processing {len(issue_urls)} issues...")
     

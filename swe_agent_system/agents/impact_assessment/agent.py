@@ -19,7 +19,7 @@ class ImpactAssessmentAgent(BaseAgent):
     - Estimate fix complexity
     """
     
-    def __init__(self, model: str = "gemini-2.5-flash"):
+    def __init__(self, model: str = "claude-sonnet-4-20250514"):
         config = AgentConfig(
             name="impact_assessment",
             model=model,

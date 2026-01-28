@@ -19,7 +19,7 @@ class CodeGeneratorAgent(BaseAgent):
     - Produce minimal, focused changes
     """
     
-    def __init__(self, model: str = "gemini-2.5-flash"):
+    def __init__(self, model: str = "claude-sonnet-4-20250514"):
         config = AgentConfig(
             name="code_generator",
             model=model,

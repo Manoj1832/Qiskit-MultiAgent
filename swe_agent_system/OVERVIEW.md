@@ -130,7 +130,7 @@ This is inspired by [SWE-bench](https://www.swebench.com/), a famous benchmark f
 
 ### Prerequisites
 - Python 3.10+
-- Google Gemini API key
+- OpenAI API key
 - GitHub Personal Access Token
 
 ### Installation
@@ -145,7 +145,7 @@ pip install -e .
 ```bash
 # Copy and edit .env file
 copy .env.example .env
-# Add your GEMINI_API_KEY and GITHUB_TOKEN
+# Add your OPENAI_API_KEY and GITHUB_TOKEN
 ```
 
 ### Usage
@@ -195,7 +195,7 @@ swe_agent_system/
 
 | Component | Technology |
 |-----------|------------|
-| AI/LLM | Google Gemini 2.5 Flash |
+| AI/LLM | OpenAI GPT-4o-mini |
 | Language | Python 3.10+ |
 | GitHub API | PyGithub |
 | CLI | Click + Rich |
@@ -216,7 +216,7 @@ swe_agent_system/
 5. ✅ Review its own code
 6. ✅ Test and validate fixes
 
-All powered by **Google Gemini AI** and designed for enterprise-scale open-source projects like **Qiskit**, following **IBM-style engineering principles**.
+All powered by **OpenAI GPT-4o-mini** and designed for enterprise-scale open-source projects like **Qiskit**, following **IBM-style engineering principles**.
 
 ---
 

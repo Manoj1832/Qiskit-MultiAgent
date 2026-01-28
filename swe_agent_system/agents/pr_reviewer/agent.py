@@ -19,7 +19,7 @@ class PRReviewerAgent(BaseAgent):
     - Security vulnerability detection
     """
     
-    def __init__(self, model: str = "gemini-2.5-flash"):
+    def __init__(self, model: str = "claude-sonnet-4-20250514"):
         config = AgentConfig(
             name="pr_reviewer",
             model=model,

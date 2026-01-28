@@ -18,7 +18,7 @@ class IssueIntelligenceAgent(BaseAgent):
     - Summarize the issue in technical terms
     """
     
-    def __init__(self, model: str = "gemini-2.5-flash"):
+    def __init__(self, model: str = "claude-sonnet-4-20250514"):
         config = AgentConfig(
             name="issue_intelligence",
             model=model,

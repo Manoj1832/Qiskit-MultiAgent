@@ -7,19 +7,60 @@ from abc import ABC, abstractmethod
 from dataclasses import dataclass
 from typing import Any
 
-from google import genai
-from google.genai import types
+import anthropic
 from pydantic import BaseModel
 
 from ..observability import AgentLogger
 from ..orchestrator.state_machine import ExecutionContext
 
 
+class AgentError(Exception):
+    """Base exception for agent-related errors."""
+    pass
+
+
+class APIError(AgentError):
+    """Raised when API calls fail."""
+    def __init__(self, message: str, status_code: int | None = None, retryable: bool = False):
+        super().__init__(message)
+        self.status_code = status_code
+        self.retryable = retryable
+
+
+class RateLimitError(APIError):
+    """Raised when API rate limit is exceeded."""
+    def __init__(self, message: str, retry_after: int | None = None):
+        super().__init__(message, retryable=True)
+        self.retry_after = retry_after
+
+
+class AuthenticationError(APIError):
+    """Raised when API authentication fails."""
+    def __init__(self, message: str):
+        super().__init__(message, retryable=False)
+
+
+class ContentFilterError(APIError):
+    """Raised when content is filtered by API."""
+    def __init__(self, message: str):
+        super().__init__(message, retryable=False)
+
+
+class TokenLimitError(AgentError):
+    """Raised when token limits are exceeded."""
+    pass
+
+
+class ResponseParsingError(AgentError):
+    """Raised when agent response cannot be parsed."""
+    pass
+
+
 @dataclass
 class AgentConfig:
     """Configuration for an agent."""
     name: str
-    model: str = "gemini-2.5-flash"
+    model: str = "claude-sonnet-4-20250514"
     temperature: float = 0.2
     max_output_tokens: int = 8192
     system_prompt: str = ""
@@ -39,7 +80,7 @@ class BaseAgent(ABC):
     
     Each agent is:
     - Stateless and prompt-driven
-    - Uses Google Gemini for reasoning
+    - Uses Anthropic Claude for reasoning
     - Returns structured outputs
     """
     
@@ -53,13 +94,9 @@ class BaseAgent(ABC):
         self.config = config
         self.logger = AgentLogger(config.name)
         
-        # Configure Gemini - client reads GEMINI_API_KEY from environment
-        self.client = genai.Client()
+        # Configure Anthropic - client reads ANTHROPIC_API_KEY from environment
+        self.client = anthropic.Anthropic()
         self.model_name = config.model
-        self.generation_config = types.GenerateContentConfig(
-            temperature=config.temperature,
-            max_output_tokens=config.max_output_tokens,
-        )
     
     @abstractmethod
     def get_system_prompt(self) -> str:
@@ -91,23 +128,23 @@ class BaseAgent(ABC):
             system_prompt = self.get_system_prompt()
             user_prompt = self.build_prompt(context)
             
-            full_prompt = f"{system_prompt}\n\n{user_prompt}"
+            self.logger.log_prompt(user_prompt, {"issue_id": context.issue_id})
             
-            self.logger.log_prompt(full_prompt, {"issue_id": context.issue_id})
-            
-            # Call Gemini using new API
-            response = self.client.models.generate_content(
+            # Call Anthropic API
+            response = self.client.messages.create(
                 model=self.model_name,
-                contents=full_prompt,
-                config=self.generation_config,
+                max_tokens=self.config.max_output_tokens,
+                system=system_prompt,
+                messages=[
+                    {"role": "user", "content": user_prompt}
+                ],
             )
             
-            response_text = response.text
-            tokens_used = 0
+            response_text = response.content[0].text
+            if not response_text:
+                raise ResponseParsingError("Empty response from API")
             
-            # Try to get token count if available
-            if hasattr(response, "usage_metadata") and response.usage_metadata:
-                tokens_used = getattr(response.usage_metadata, "total_token_count", 0)
+            tokens_used = self._extract_token_usage(response)
             
             self.logger.log_response(response_text, tokens_used)
             
@@ -115,16 +152,100 @@ class BaseAgent(ABC):
             parsed = self.parse_response(response_text)
             parsed["tokens_used"] = tokens_used
             parsed["raw_response"] = response_text
+            parsed["success"] = True
             
             return parsed
             
-        except Exception as e:
-            self.logger.log_error(e, {"context": context.issue_id})
+        except ResponseParsingError as e:
+            self.logger.log_error(e, {"context": context.issue_id, "error_type": "parsing"})
             return {
                 "success": False,
                 "error": str(e),
                 "tokens_used": 0,
+                "retryable": True,  # Parsing errors might be resolved with retry
             }
+            
+        except Exception as e:
+            # Handle API-related errors specifically
+            if "anthropic" in str(type(e)).lower() or "API" in str(type(e)):
+                error = self._handle_api_error(e)
+                self.logger.log_error(error, {"context": context.issue_id, "error_type": type(error).__name__})
+                return {
+                    "success": False,
+                    "error": str(error),
+                    "tokens_used": 0,
+                    "retryable": getattr(error, "retryable", False),
+                }
+            else:
+                self.logger.log_error(e, {"context": context.issue_id, "error_type": "unexpected"})
+                return {
+                    "success": False,
+                    "error": str(e),
+                    "tokens_used": 0,
+                    "retryable": False,
+                }
+    
+    def _extract_token_usage(self, response) -> int:
+        """
+        Extract token usage from API response with robust fallbacks.
+        
+        Args:
+            response: API response object
+            
+        Returns:
+            Number of tokens used
+        """
+        # Primary method: usage object
+        if hasattr(response, "usage") and response.usage:
+            input_tokens = getattr(response.usage, "input_tokens", 0)
+            output_tokens = getattr(response.usage, "output_tokens", 0)
+            return input_tokens + output_tokens
+        
+        # Fallback: estimate from response length
+        if hasattr(response, "content") and response.content:
+            text = response.content[0].text if response.content else ""
+            if text:
+                # Rough estimation: ~4 characters per token
+                estimated_tokens = len(text) // 4
+                return max(estimated_tokens, 1)
+        
+        return 0
+    
+    def _handle_api_error(self, error: Exception) -> AgentError:
+        """
+        Convert API errors to specific agent exceptions.
+        
+        Args:
+            error: Original API error
+            
+        Returns:
+            Specific agent error
+        """
+        error_message = str(error)
+        status_code = getattr(error, "status_code", None)
+        
+        # Rate limit errors
+        if "rate limit" in error_message.lower() or "quota" in error_message.lower():
+            retry_after = None
+            if hasattr(error, "retry_after"):
+                retry_after = error.retry_after
+            return RateLimitError(error_message, retry_after)
+        
+        # Authentication errors
+        if any(keyword in error_message.lower() for keyword in ["auth", "unauthorized", "forbidden", "invalid_api_key"]):
+            return AuthenticationError(error_message)
+        
+        # Content filter errors
+        if any(keyword in error_message.lower() for keyword in ["content filter", "safety", "blocked"]):
+            return ContentFilterError(error_message)
+        
+        # Token limit errors
+        if any(keyword in error_message.lower() for keyword in ["token limit", "too long", "max length"]):
+            return TokenLimitError(error_message)
+        
+        # Generic API error
+        retryable = status_code is None or status_code >= 500  # Retry server errors
+        return APIError(error_message, status_code, retryable)
     
     def _extract_json_from_response(self, text: str) -> dict[str, Any]:
         """

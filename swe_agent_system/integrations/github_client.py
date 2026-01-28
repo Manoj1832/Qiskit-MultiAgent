@@ -3,6 +3,8 @@ GitHub API client for repository and issue access.
 """
 
 import os
+import time
+import asyncio
 from dataclasses import dataclass
 from typing import Any
 from github import Github, GithubException
@@ -35,6 +37,80 @@ class FileContent:
     size: int
 
 
+class RateLimiter:
+    """Proactive rate limiter for GitHub API calls."""
+    
+    def __init__(self, safety_margin: int = 100):
+        self.safety_margin = safety_margin
+        self.last_check = 0
+        self.cached_limits = None
+        self.check_interval = 60  # Check rate limits every 60 seconds
+    
+    async def check_rate_limit(self, github_client: Github) -> dict[str, Any]:
+        """Check current rate limit status with caching."""
+        now = time.time()
+        
+        # Use cached value if recent enough
+        if (self.cached_limits and 
+            now - self.last_check < self.check_interval):
+            return self.cached_limits
+        
+        try:
+            rate_limit = github_client.get_rate_limit()
+            # Handle different PyGithub versions and access patterns
+            try:
+                # Try accessing core attribute first
+                core_limit = rate_limit.core
+            except (AttributeError, TypeError):
+                try:
+                    # Try rate attribute as fallback
+                    core_limit = rate_limit.rate
+                except (AttributeError, TypeError):
+                    # Use the rate_limit object directly
+                    core_limit = rate_limit
+            
+            if core_limit and hasattr(core_limit, 'remaining'):
+                limits = {
+                    "remaining": core_limit.remaining,
+                    "limit": core_limit.limit,
+                    "reset_at": core_limit.reset.timestamp(),
+                    "reset_in": max(0, core_limit.reset.timestamp() - now),
+                }
+            else:
+                # Fallback for older versions or different structures
+                limits = {
+                    "remaining": getattr(rate_limit, 'remaining', 1000),
+                    "limit": getattr(rate_limit, 'limit', 5000),
+                    "reset_at": now + 3600,
+                    "reset_in": 3600,
+                }
+            
+            self.cached_limits = limits
+            self.last_check = now
+            return limits
+            
+        except Exception:
+            # Fallback to conservative limits
+            return {
+                "remaining": 1000,
+                "limit": 5000,
+                "reset_at": now + 3600,
+                "reset_in": 3600,
+            }
+    
+    async def wait_if_needed(self, github_client: Github, estimated_cost: int = 1) -> None:
+        """Wait if rate limit might be exceeded."""
+        limits = await self.check_rate_limit(github_client)
+        
+        # If we're too close to the limit, wait
+        if limits["remaining"] <= (estimated_cost + self.safety_margin):
+            wait_time = limits["reset_in"] + 1  # Wait until reset + 1 second buffer
+            if wait_time > 0:
+                await asyncio.sleep(wait_time)
+                # Refresh limits after waiting
+                await self.check_rate_limit(github_client)
+
+
 class GitHubClient:
     """
     Client for interacting with GitHub API.
@@ -57,14 +133,17 @@ class GitHubClient:
         self.github = Github(self.token)
         self.read_only = read_only
         self._repo_cache: dict[str, Repository] = {}
+        self.rate_limiter = RateLimiter()
     
-    def get_repository(self, repo_name: str) -> Repository:
+    async def get_repository(self, repo_name: str) -> Repository:
         """Get a repository by name (e.g., 'Qiskit/qiskit')."""
+        await self.rate_limiter.wait_if_needed(self.github, estimated_cost=1)
+        
         if repo_name not in self._repo_cache:
             self._repo_cache[repo_name] = self.github.get_repo(repo_name)
         return self._repo_cache[repo_name]
     
-    def get_issue(self, repo_name: str, issue_number: int) -> IssueData:
+    async def get_issue(self, repo_name: str, issue_number: int) -> IssueData:
         """
         Fetch issue data from GitHub.
         
@@ -75,7 +154,9 @@ class GitHubClient:
         Returns:
             IssueData with issue details
         """
-        repo = self.get_repository(repo_name)
+        await self.rate_limiter.wait_if_needed(self.github, estimated_cost=2)
+        
+        repo = await self.get_repository(repo_name)
         issue = repo.get_issue(issue_number)
         
         # Fetch comments
@@ -94,7 +175,7 @@ class GitHubClient:
             author=issue.user.login if issue.user else "unknown",
         )
     
-    def get_issue_from_url(self, url: str) -> IssueData:
+    async def get_issue_from_url(self, url: str) -> IssueData:
         """
         Fetch issue data from a GitHub issue URL.
         
@@ -109,7 +190,7 @@ class GitHubClient:
         issue_number = int(parts[-1])
         repo_name = f"{parts[-4]}/{parts[-3]}"
         
-        return self.get_issue(repo_name, issue_number)
+        return await self.get_issue(repo_name, issue_number)
     
     def get_file_content(self, repo_name: str, file_path: str, ref: str = "main") -> FileContent:
         """
@@ -199,11 +280,6 @@ class GitHubClient:
             "deletions": pr.deletions,
         }
     
-    def get_rate_limit(self) -> dict[str, Any]:
+    async def get_rate_limit(self) -> dict[str, Any]:
         """Get current API rate limit status."""
-        rate_limit = self.github.get_rate_limit()
-        return {
-            "remaining": rate_limit.core.remaining,
-            "limit": rate_limit.core.limit,
-            "reset_at": rate_limit.core.reset.isoformat(),
-        }
+        return await self.rate_limiter.check_rate_limit(self.github)

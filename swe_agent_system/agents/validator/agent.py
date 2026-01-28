@@ -19,7 +19,7 @@ class ValidatorAgent(BaseAgent):
     - Recommend additional tests
     """
     
-    def __init__(self, model: str = "gemini-2.5-flash"):  # Faster model for validation
+    def __init__(self, model: str = "claude-sonnet-4-20250514"):  # Faster model for validation
         config = AgentConfig(
             name="validator",
             model=model,
