@@ -28,6 +28,8 @@ A scalable, enterprise-grade multi-agent AI system that autonomously performs so
 
 ## 🚀 Quick Start
 
+> For detailed instructions, see the [Setup Guide](swe_agent_system/SETUP.md) and [Usage Guide](swe_agent_system/USAGE.md).
+
 ### Prerequisites
 
 - Python 3.10+
