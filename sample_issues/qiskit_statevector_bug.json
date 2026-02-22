@@ -1,0 +1,19 @@
+{
+    "repo": "Qiskit/qiskit",
+    "issue_number": 99998,
+    "title": "Statevector.equiv returns False for equivalent states with global phase difference",
+    "body": "## Description\n\n`Statevector.equiv()` is documented to ignore global phase, but it returns `False` when comparing states that differ only by a global phase of π/4.\n\n## Expected behavior\n\n`Statevector.equiv(sv1, sv2)` should return `True` when `sv1 = e^(iθ) * sv2` for any angle θ.\n\n## Actual behavior\n\nReturns `False` for certain phase angles, specifically when θ is not a multiple of π/2. Tested θ = π/4, π/8, π/6 — all return False.\n\n## Steps to reproduce\n\n```python\nimport numpy as np\nfrom qiskit.quantum_info import Statevector\n\nsv1 = Statevector([1, 0])\nsv2 = Statevector([np.exp(1j * np.pi/4), 0])\n\nprint(sv1.equiv(sv2))  # Expected: True, Actual: False\n```\n\n## My analysis\n\nLooking at the source in `qiskit/quantum_info/states/statevector.py`, the `equiv` method normalizes by dividing by the first non-zero element, but there's a floating-point comparison that's too tight (uses `atol=1e-15` instead of the standard `1e-10`).\n\n## Environment\n\n- Qiskit version: 1.3.0\n- Python 3.12\n- numpy 1.26.4",
+    "labels": [
+        "bug",
+        "quantum_info"
+    ],
+    "state": "open",
+    "author": "phaseshift-researcher",
+    "created_at": "2026-02-12T14:30:00Z",
+    "comments": [
+        "Confirmed. This is a tolerance issue in the `equiv` method."
+    ],
+    "linked_pr_numbers": [],
+    "linked_pr_files": [],
+    "milestone": null
+}

@@ -1,0 +1,171 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Quantum PR Review</title>
+    <meta name="description" content="Multi-agent AI-powered pull request review for Qiskit">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link
+        href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@300;400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap"
+        rel="stylesheet">
+    <link rel="stylesheet" href="style.css">
+</head>
+
+<body>
+    <!-- Header -->
+    <header class="header">
+        <div class="header-inner">
+            <div class="header-left">
+                <!-- High-fidelity IBM 8-bar logo -->
+                <svg class="ibm-logo" width="64" height="26" viewBox="0 0 32 12" fill="none"
+                    xmlns="http://www.w3.org/2000/svg">
+                    <path
+                        d="M6 0h-6v1h6v-1zm0 2.2h-6v1h6v-1zm0 2.2h-6v1h6v-1zm0 2.2h-6v1h6v-1zm0 2.2h-6v1h6v-1zm0 2.2h-6v1h6v-1zm0 2.2h-6v1h6v-1zm0 2.2h-6v1h6v-1zM19 0h-10v1h10v-1zm0 2.2h-10v1h10v-1zm0 2.2h-2v1h2v-1zm-8 0h-2v1h2v-1zM19 4.4h-10v1h10v-1zm0 2.2h-10v1h10v-1zm0 2.2h-2v1h2v-1zm-8 0h-2v1h2v-1zM19 8.8h-10v1h10v-1zm0 2.2h-10v1h10v-1zM32 0h-4v1h4v-1zm-6 0h-4v1h4v-1zm0 2.2h3v1h-3v-1zm-5 0h3v1h-3v-1zm1 2.2h2v1h-2v-1zm5 0h2v1h-2v-1zm1 2.2h5v1h-5v-1zm-10 0h5v1h-5v-1zm0 2.2h2v1h-2v-1zm8 0h2v1h-2v-1zm0 2.2h2v1h-2v-1zm-8 0h2v1h-2v-1zm0 2.2h2v1h-2v-1zm8 0h2v1h-2v-1z"
+                        fill="white" />
+                </svg>
+                <span class="header-divider"></span>
+                <span class="header-title">Quantum PR Review</span>
+            </div>
+            <div class="header-right">
+                <div class="gh-chip" id="gh-chip" style="display:none; cursor:pointer;"
+                    onclick="window.location.href = '/api/github/logout';" title="Click to logout">
+                    <img class="gh-chip-avatar" id="gh-avatar" src="" alt="">
+                    <span id="gh-username"></span>
+                    <span style="margin-left:8px;font-size:12px;opacity:0.7;">(Logout)</span>
+                </div>
+                <div class="gh-chip gh-chip-warn" id="gh-warn" style="display:none; cursor:pointer;"
+                    onclick="window.location.href='/api/github/login'">
+                    <span class="dot dot-warn"></span> Login with GitHub
+                </div>
+            </div>
+        </div>
+    </header>
+
+    <main class="main">
+        <!-- Input Section -->
+        <section class="input-section">
+            <div class="container">
+                <div class="input-grid">
+                    <div class="field">
+                        <label class="field-label" for="repo-select">Repository</label>
+                        <div class="select-wrapper">
+                            <select class="select" id="repo-select" disabled>
+                                <option value="">Loading repositories...</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="field">
+                        <label class="field-label" for="pr-select">Pull Request</label>
+                        <div class="select-wrapper">
+                            <select class="select" id="pr-select" disabled>
+                                <option value="">Select a repository first</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="field field-btn">
+                        <button class="btn-primary" id="btn-review" disabled>
+                            <span id="btn-text">Run review</span>
+                            <span id="btn-loading" style="display:none;"><span class="spinner-sm"></span>
+                                Analyzing</span>
+                        </button>
+                    </div>
+                </div>
+                <div class="autofix-bar" id="autofix-bar" style="display:none;">
+                    <label class="toggle-row">
+                        <input type="checkbox" id="autofix-toggle" class="toggle-input">
+                        <span class="toggle-switch"></span>
+                        <span class="toggle-label">Enable auto-fix suggestions</span>
+                        <span class="toggle-hint">AI will generate code patches for each finding</span>
+                    </label>
+                </div>
+            </div>
+        </section>
+
+        <!-- Review Status Banner -->
+        <section class="status-banner" id="status-banner" style="display:none;">
+            <div class="container">
+                <div class="status-inner">
+                    <span class="spinner-sm spinner-blue"></span>
+                    <span id="status-text">Running 5 specialist agents in parallel...</span>
+                </div>
+            </div>
+        </section>
+
+        <!-- Results -->
+        <section class="results-section" id="results" style="display:none;">
+            <div class="container">
+
+                <!-- Metrics -->
+                <div class="metrics-row">
+                    <div class="metric-box">
+                        <div class="metric-value" id="m-score">—</div>
+                        <div class="metric-label">Quality</div>
+                    </div>
+                    <div class="metric-box">
+                        <div class="metric-value" id="m-risk">—</div>
+                        <div class="metric-label">Risk</div>
+                    </div>
+                    <div class="metric-box">
+                        <div class="metric-value" id="m-rec">—</div>
+                        <div class="metric-label">Verdict</div>
+                    </div>
+                    <div class="metric-box">
+                        <div class="metric-value" id="m-total">—</div>
+                        <div class="metric-label">Findings</div>
+                    </div>
+                </div>
+
+                <!-- Summary -->
+                <div class="summary-box" id="summary-box">
+                    <p id="summary-text"></p>
+                    <div class="summary-meta" id="summary-meta"></div>
+                </div>
+
+                <!-- Action buttons (approve / merge) -->
+                <div class="action-bar" id="action-bar" style="display:none;">
+                    <button class="btn-approve" id="btn-approve">
+                        <span>✓</span> Approve PR
+                    </button>
+                    <button class="btn-merge" id="btn-merge">
+                        <span>⎇</span> Merge PR
+                    </button>
+                    <span class="action-status" id="action-status"></span>
+                </div>
+
+                <!-- Tabs -->
+                <div class="tabs-bar">
+                    <button class="tab active" data-tab="syntax">Syntax <span class="badge"
+                            id="b-syntax">0</span></button>
+                    <button class="tab" data-tab="design">Architecture <span class="badge"
+                            id="b-design">0</span></button>
+                    <button class="tab" data-tab="quantum">Quantum <span class="badge" id="b-quantum">0</span></button>
+                    <button class="tab" data-tab="perf">Performance <span class="badge" id="b-perf">0</span></button>
+                    <button class="tab" data-tab="security">Security <span class="badge"
+                            id="b-security">0</span></button>
+                </div>
+
+                <!-- Panels -->
+                <div class="panels">
+                    <div class="panel active" id="p-syntax"></div>
+                    <div class="panel" id="p-design"></div>
+                    <div class="panel" id="p-quantum"></div>
+                    <div class="panel" id="p-perf"></div>
+                    <div class="panel" id="p-security"></div>
+                </div>
+            </div>
+        </section>
+    </main>
+
+    <footer class="footer">
+        <span>Quantum PR Review</span>
+        <span class="footer-dot">·</span>
+        <span>Multi-Agent AI Engine</span>
+    </footer>
+
+    <script src="app.js"></script>
+</body>
+
+</html>

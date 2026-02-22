@@ -1,0 +1,12 @@
+version: '3.8'
+
+services:
+  quantum-agent:
+    build: .
+    ports:
+      - "8080:8080"
+    env_file:
+      - .env
+    volumes:
+      # Map the local dashboard folder so report state persists outside the container
+      - ./dashboard/latest_report.json:/app/dashboard/latest_report.json

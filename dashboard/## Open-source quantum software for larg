@@ -1,0 +1,15 @@
+## Open-source quantum software for large-scale execution
+
+- 13MQiskit downloads
+- 69%Developers prefer Qiskit as primary SDK, according to the [Unitary Foundation](https://unitaryfoundation.github.io/survey-2025/#full-stack-development-platforms-compilers-and-simulators-used-currently-or-in-the-future)
+- 83xFaster transpilation time, according to [Benchpress toolkit](https://github.com/Qiskit/benchpress)
+- 7K+Dependent projects
+13M
+Qiskit downloads
+69%
+Developers prefer Qiskit as primary SDK, according to the [Unitary Foundation](https://unitaryfoundation.github.io/survey-2025/#full-stack-development-platforms-compilers-and-simulators-used-currently-or-in-the-future)
+83x
+Faster transpilation time, according to [Benchpress toolkit](https://github.com/Qiskit/benchpress)
+7K+
+Dependent projects
+Qiskit is the software of choice for the era of advantage because it offers the most comprehensive suite of open-source tools for advancing research across the stack. Experiment at scale with the world’s fastest transpiler, which prepares workloads 83x faster than the next leading SDK.

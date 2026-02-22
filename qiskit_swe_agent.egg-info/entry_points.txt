@@ -1,0 +1,2 @@
+[console_scripts]
+qiskit-swe = orchestrator.cli:main

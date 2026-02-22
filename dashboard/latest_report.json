@@ -1,0 +1,96 @@
+{
+  "summary": "The pull request contains code in 'sample.py' and 'sample2.py' that has several syntax issues, potential design improvements, and performance optimizations. The code does not follow Python syntax correctly in multiple instances, and there are undefined variables that could lead to runtime errors. Overall, the code needs several corrections before it can be considered for approval.",
+  "risk_level": "Medium",
+  "quality_score": 50,
+  "syntax_issues": [
+    {
+      "file": "sample.py",
+      "line": 1,
+      "issue": "Incorrect function usage.",
+      "fix": "Replace 'printf(i am cheking for error)' with 'print(\"i am checking for error\")'."
+    },
+    {
+      "file": "sample2.py",
+      "line": 1,
+      "issue": "Incorrect function usage.",
+      "fix": "Replace 'System.out.print(\"hi\")' with 'print(\"hi\")'."
+    },
+    {
+      "file": "sample2.py",
+      "line": 2,
+      "issue": "Undefined variable 'abcd'.",
+      "fix": "Define 'abcd' or remove the line if it is not needed."
+    }
+  ],
+  "design_improvements": [
+    {
+      "file": "sample.py",
+      "issue": "Code duplication in error message handling.",
+      "suggestion": "Create a utility function for logging error messages.",
+      "refactor_example": "def log_error(message): print(message)  # then use log_error('i am checking for error')"
+    },
+    {
+      "file": "sample2.py",
+      "issue": "Unclear purpose of variable 'abcd'.",
+      "suggestion": "Define 'abcd' with a clear purpose or remove it if unnecessary.",
+      "refactor_example": "abcd = 'some value'  # if needed, otherwise remove the line."
+    }
+  ],
+  "quantum_validation": [],
+  "performance_optimizations": [
+    {
+      "file": "sample.py",
+      "issue": "Unnecessary use of printf syntax in Python.",
+      "improvement": "Replace 'printf(i am cheking for error)' with 'print(\"i am checking for error\")' to use Python's print function correctly."
+    },
+    {
+      "file": "sample2.py",
+      "issue": "Use of Java print syntax in Python.",
+      "improvement": "Replace 'System.out.print(\"hi\")' with 'print(\"hi\")' to use Python's print function correctly."
+    },
+    {
+      "file": "sample2.py",
+      "issue": "Undefined variable 'abcd'.",
+      "improvement": "Define 'abcd' or remove the line if it is not needed to avoid potential NameError."
+    }
+  ],
+  "security_concerns": [
+    {
+      "file": "sample.py",
+      "risk": "No security risks detected, but code does not follow Python syntax.",
+      "recommendation": "Ensure the code is valid Python syntax and follows best practices."
+    },
+    {
+      "file": "sample2.py",
+      "risk": "No security risks detected, but code contains an undefined variable.",
+      "recommendation": "Define 'abcd' or remove the line if it is not needed to avoid potential NameError."
+    }
+  ],
+  "overall_recommendation": "Request Changes",
+  "review_stats": {
+    "total_findings": 0,
+    "critical": 0,
+    "errors": 0,
+    "warnings": 0,
+    "info": 0
+  },
+  "meta": {
+    "repo": "Manoj1832/Qiskit-MulitAgent",
+    "pr_number": 3,
+    "pr_url": "https://github.com/Manoj1832/Qiskit-MulitAgent/pull/3",
+    "pr_title": "Branch5.27",
+    "pr_author": "Mahinth",
+    "files_changed_count": 2,
+    "additions": 3,
+    "deletions": 0,
+    "review_duration_seconds": 15.9,
+    "agents_used": [
+      "SyntaxAgent",
+      "ArchitectureAgent",
+      "QuantumValidator",
+      "PerformanceAgent",
+      "SecurityAgent",
+      "AggregatorAgent"
+    ]
+  }
+}

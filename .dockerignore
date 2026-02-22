@@ -1,0 +1,7 @@
+venv/
+__pycache__/
+*.pyc
+.env
+.git/
+qiskit_swe_agent.egg-info/
+dashboard/latest_report.json
